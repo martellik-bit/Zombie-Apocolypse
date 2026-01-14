@@ -29,25 +29,29 @@ A browser-based top-down 2D survival shooter game built with HTML5 Canvas and va
 - Use hide spots (crates) to break line of sight - zombies will lose aggro after 2 seconds and wander
 - Shooting while hiding will break your cover
 - **Choose your difficulty** - Easy, Medium, or Hard affects zombie health and spawn rate
-- **Collect ammo drops** - Orange ammo boxes fall from the sky after every 2 zombie kills
+- **Start with 500 bullets** - Plenty of ammo to get you started!
+- **Collect ammo drops** - Orange ammo boxes fall from the sky sporadically AND after every 2 zombie kills
+- **Collect health drops** - Green health boxes with medical crosses fall sporadically, restoring 30 HP
 - Use **gun spinning** (F key) to continuously rotate your aim while shooting with spacebar
 - **Drop bombs** (B key) - Start with 5 bombs that kill zombies on contact
 - **Drive the tank** (T key) - Enter the tank for 300 HP protection, fire from inside, exit anytime
 - Zombies cry "Ouch you got me!" and other random messages when defeated
 - Watch explosive particle effects when zombies die
-- Manage your ammo carefully - you have limited reserve ammunition
+- Manage your ammo carefully, but don't worry - ammo drops frequently!
 - Difficulty increases over time as zombies spawn faster and move quicker
 
 ## Features
 
 - Smooth deltaTime-based movement
 - **Three difficulty levels** - Easy, Medium, and Hard with different zombie health and spawn rates
+- **500 starting bullets** - Start with plenty of reserve ammunition
 - Invulnerability frames after taking damage
 - Magazine and reserve ammo system with reload mechanic
 - **Gun spinning mechanic** - Press F to continuously rotate your aim, shoot with spacebar
 - **Bomb system** - Drop 5 bombs that kill zombies on contact with explosion effects
 - **Tank vehicle** - Enter/exit a tank with 300 HP, drive around, and shoot from protection
-- **Ammo drop system** - Collect falling ammo boxes after killing zombies
+- **Ammo drop system** - Collect falling orange ammo boxes (spawn sporadically + after zombie kills)
+- **Health drop system** - Collect falling green health boxes to restore 30 HP (spawn sporadically)
 - **Explosion particle effects** - Colorful particles burst out when zombies die
 - **Floating death messages** - Zombies display random humorous death messages
 - **Sound effects** - Procedurally generated sounds using Web Audio API (shooting, zombie deaths, damage, ammo pickup, reload)
