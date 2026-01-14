@@ -89,9 +89,12 @@
         <div id="overlay" class="interactive">
             <div class="overlay-title">ZOMBIE HIDE & SURVIVE</div>
             <div class="overlay-text">WASD/Arrow keys to move, Mouse to aim, Left-click/Spacebar to shoot</div>
-            <div class="overlay-text">R to reload, E to hide, F to spin gun, P to pause</div>
-            <div class="overlay-text">Collect ammo drops after killing zombies!</div>
-            <button class="overlay-button" onclick="game.startGame()">START GAME</button>
+            <div class="overlay-text">R to reload, E to hide, F to spin gun, B to drop bomb, T to enter/exit tank</div>
+            <div class="overlay-text">Collect ammo drops! Use bombs to kill zombies! Drive the tank for protection!</div>
+            <div class="overlay-text" style="margin-top: 20px; font-size: 24px;">SELECT DIFFICULTY:</div>
+            <button class="overlay-button" onclick="game.startGame(1)" style="margin: 10px;">EASY</button>
+            <button class="overlay-button" onclick="game.startGame(2)" style="margin: 10px;">MEDIUM</button>
+            <button class="overlay-button" onclick="game.startGame(3)" style="margin: 10px;">HARD</button>
         </div>
     </div>
     <script src="game.js"></script>

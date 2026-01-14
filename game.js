@@ -55,6 +55,44 @@ const CONFIG = {
     spinShoot: {
         rotationSpeed: 10, // radians per second
         shootInterval: 100 // ms between shots while spinning
+    },
+    bomb: {
+        radius: 40,
+        explosionRadius: 80,
+        maxBombs: 5,
+        color: '#333333'
+    },
+    tank: {
+        width: 60,
+        height: 80,
+        speed: 150,
+        maxHealth: 300,
+        interactDistance: 70,
+        color: '#4a4a4a',
+        cannonLength: 40
+    },
+    levels: {
+        1: {
+            name: 'Easy',
+            zombieHealth: 50,
+            zombieSpeed: 60,
+            zombieSpawnRate: 3000,
+            zombieSpawnRateDecrease: 150
+        },
+        2: {
+            name: 'Medium',
+            zombieHealth: 100,
+            zombieSpeed: 80,
+            zombieSpawnRate: 2000,
+            zombieSpawnRateDecrease: 100
+        },
+        3: {
+            name: 'Hard',
+            zombieHealth: 150,
+            zombieSpeed: 100,
+            zombieSpawnRate: 1500,
+            zombieSpawnRateDecrease: 75
+        }
     }
 };
 
@@ -575,15 +613,134 @@ class Explosion {
     }
 }
 
+// Bomb class
+class Bomb {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.radius = CONFIG.bomb.radius;
+        this.explosionRadius = CONFIG.bomb.explosionRadius;
+        this.active = true;
+        this.pulseTime = 0;
+    }
+
+    update(deltaTime) {
+        this.pulseTime += deltaTime;
+    }
+
+    draw(ctx) {
+        // Pulsing bomb
+        const pulse = Math.sin(this.pulseTime * 10) * 0.2 + 0.8;
+
+        ctx.fillStyle = CONFIG.bomb.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius * pulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Fuse
+        ctx.strokeStyle = '#ff6600';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y - this.radius);
+        ctx.lineTo(this.x, this.y - this.radius - 10);
+        ctx.stroke();
+
+        // Explosion radius indicator (faint circle)
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.explosionRadius, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+
+    checkZombieCollision(zombie) {
+        return distance(this.x, this.y, zombie.x, zombie.y) < this.explosionRadius;
+    }
+}
+
+// Tank class
+class Tank {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.width = CONFIG.tank.width;
+        this.height = CONFIG.tank.height;
+        this.angle = 0;
+        this.maxHealth = CONFIG.tank.maxHealth;
+        this.health = this.maxHealth;
+        this.occupied = false;
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+
+        // Tank body
+        ctx.fillStyle = CONFIG.tank.color;
+        ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+
+        // Tank treads
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(-this.width / 2 - 5, -this.height / 2, 5, this.height);
+        ctx.fillRect(this.width / 2, -this.height / 2, 5, this.height);
+
+        // Tank turret
+        ctx.fillStyle = '#5a5a5a';
+        ctx.beginPath();
+        ctx.arc(0, 0, 20, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Tank cannon
+        ctx.fillStyle = '#3a3a3a';
+        ctx.fillRect(0, -3, CONFIG.tank.cannonLength, 6);
+
+        ctx.restore();
+
+        // Health bar
+        const barWidth = this.width;
+        const barHeight = 5;
+        const barX = this.x - this.width / 2;
+        const barY = this.y - this.height / 2 - 10;
+
+        ctx.fillStyle = '#333';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+
+        ctx.fillStyle = '#00ff00';
+        ctx.fillRect(barX, barY, barWidth * (this.health / this.maxHealth), barHeight);
+
+        // Interact prompt
+        if (!this.occupied) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.font = '14px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText('Press T to enter', this.x, this.y - this.height / 2 - 20);
+        }
+    }
+
+    isPlayerNear(player) {
+        return distance(this.x, this.y, player.x, player.y) < CONFIG.tank.interactDistance;
+    }
+
+    takeDamage(amount) {
+        this.health -= amount;
+        if (this.health <= 0) {
+            this.health = 0;
+            return true; // Tank destroyed
+        }
+        return false;
+    }
+}
+
 // Zombie class
 class Zombie {
-    constructor(x, y, speed) {
+    constructor(x, y, speed, health) {
         this.x = x;
         this.y = y;
         this.radius = CONFIG.zombie.radius;
         this.speed = speed;
-        this.health = 100;
-        this.maxHealth = 100;
+        this.health = health || 100;
+        this.maxHealth = health || 100;
         this.hasAggro = true;
         this.aggroLostTime = 0;
         this.wanderAngle = Math.random() * Math.PI * 2;
@@ -720,7 +877,13 @@ class Game {
         this.ammoBoxes = [];
         this.floatingTexts = [];
         this.explosions = [];
+        this.bombs = [];
+        this.tank = null;
         this.killCount = 0;
+
+        this.currentLevel = 1;
+        this.bombCount = CONFIG.bomb.maxBombs;
+        this.playerInTank = false;
 
         this.score = 0;
         this.bestScore = this.loadBestScore();
@@ -728,6 +891,7 @@ class Game {
         this.zombieSpawnTimer = 0;
         this.zombieSpawnRate = CONFIG.zombie.spawnRate;
         this.zombieSpeed = CONFIG.zombie.baseSpeed;
+        this.zombieHealth = 100;
 
         this.lastTime = 0;
 
@@ -753,6 +917,12 @@ class Game {
                 }
                 if (e.key === 'f' || e.key === 'F') {
                     this.toggleSpinShoot();
+                }
+                if (e.key === 'b' || e.key === 'B') {
+                    this.dropBomb();
+                }
+                if (e.key === 't' || e.key === 'T') {
+                    this.toggleTank();
                 }
                 if (e.key === 'p' || e.key === 'P') {
                     this.pauseGame();
@@ -788,7 +958,7 @@ class Game {
         });
     }
 
-    startGame() {
+    startGame(level = 1) {
         this.state = GAME_STATES.PLAYING;
         this.overlay.classList.add('hidden');
         this.overlay.classList.remove('interactive');
@@ -798,11 +968,17 @@ class Game {
             this.soundManager.init();
         }
 
+        // Set level
+        this.currentLevel = level;
+        const levelConfig = CONFIG.levels[level];
+
         // Initialize game objects
         this.player = new Player(this.canvas.width / 2, this.canvas.height / 2);
         this.gun = new Gun();
         this.bullets = [];
         this.zombies = [];
+        this.bombs = [];
+        this.playerInTank = false;
 
         // Create hide spots
         this.hideSpots = [
@@ -813,11 +989,16 @@ class Game {
             new HideSpot(this.canvas.width / 2 - 50, this.canvas.height / 2 - 50)
         ];
 
+        // Create tank
+        this.tank = new Tank(this.canvas.width / 2 + 200, this.canvas.height / 2);
+
         this.score = 0;
         this.gameTime = 0;
         this.zombieSpawnTimer = 0;
-        this.zombieSpawnRate = CONFIG.zombie.spawnRate;
-        this.zombieSpeed = CONFIG.zombie.baseSpeed;
+        this.zombieSpawnRate = levelConfig.zombieSpawnRate;
+        this.zombieSpeed = levelConfig.zombieSpeed;
+        this.zombieHealth = levelConfig.zombieHealth;
+        this.bombCount = CONFIG.bomb.maxBombs;
         this.ammoBoxes = [];
         this.floatingTexts = [];
         this.explosions = [];
@@ -881,6 +1062,30 @@ class Game {
         this.player.spinShootTimer = 0;
     }
 
+    dropBomb() {
+        if (this.bombCount <= 0) return;
+        if (this.playerInTank) return; // Can't drop bombs in tank
+
+        this.bombs.push(new Bomb(this.player.x, this.player.y));
+        this.bombCount--;
+    }
+
+    toggleTank() {
+        if (!this.tank || this.tank.health <= 0) return;
+
+        if (this.playerInTank) {
+            // Exit tank
+            this.playerInTank = false;
+            this.tank.occupied = false;
+            this.player.x = this.tank.x;
+            this.player.y = this.tank.y + this.tank.height / 2 + 30;
+        } else if (this.tank.isPlayerNear(this.player)) {
+            // Enter tank
+            this.playerInTank = true;
+            this.tank.occupied = true;
+        }
+    }
+
     spawnAmmoBox() {
         const x = Math.random() * (this.canvas.width - 100) + 50;
         const y = -20; // Start above the screen
@@ -910,33 +1115,76 @@ class Game {
                 break;
         }
 
-        this.zombies.push(new Zombie(x, y, this.zombieSpeed));
+        this.zombies.push(new Zombie(x, y, this.zombieSpeed, this.zombieHealth));
     }
 
     updateGame(deltaTime) {
         this.gameTime += deltaTime;
 
-        // Update player
-        this.player.update(deltaTime, this.keys, this.canvas);
+        if (this.playerInTank && this.tank) {
+            // Update tank movement
+            let dx = 0;
+            let dy = 0;
 
-        // Update player angle based on mouse (unless spinning)
-        if (!this.player.isSpinShooting) {
-            this.player.angle = Math.atan2(
-                this.mouseY - this.player.y,
-                this.mouseX - this.player.x
+            if (this.keys['w'] || this.keys['W'] || this.keys['ArrowUp']) dy -= 1;
+            if (this.keys['s'] || this.keys['S'] || this.keys['ArrowDown']) dy += 1;
+            if (this.keys['a'] || this.keys['A'] || this.keys['ArrowLeft']) dx -= 1;
+            if (this.keys['d'] || this.keys['D'] || this.keys['ArrowRight']) dx += 1;
+
+            if (dx !== 0 && dy !== 0) {
+                dx *= 0.707;
+                dy *= 0.707;
+            }
+
+            this.tank.x += dx * CONFIG.tank.speed * deltaTime;
+            this.tank.y += dy * CONFIG.tank.speed * deltaTime;
+
+            // Keep tank in bounds
+            this.tank.x = Math.max(this.tank.width / 2, Math.min(this.canvas.width - this.tank.width / 2, this.tank.x));
+            this.tank.y = Math.max(this.tank.height / 2, Math.min(this.canvas.height - this.tank.height / 2, this.tank.y));
+
+            // Update player position to tank
+            this.player.x = this.tank.x;
+            this.player.y = this.tank.y;
+
+            // Tank aim with mouse
+            this.tank.angle = Math.atan2(
+                this.mouseY - this.tank.y,
+                this.mouseX - this.tank.x
             );
-        } else {
-            // Spinning - rotate constantly
-            this.player.angle += CONFIG.spinShoot.rotationSpeed * deltaTime;
-        }
+            this.player.angle = this.tank.angle;
 
-        // Shooting (disabled while hiding, works with or without spinning)
-        const isShooting = this.mouseDown || this.keys[' '];
-        if (isShooting && !this.player.isHiding && this.gun.shoot()) {
-            const bulletX = this.player.x + Math.cos(this.player.angle) * (this.player.radius + 10);
-            const bulletY = this.player.y + Math.sin(this.player.angle) * (this.player.radius + 10);
-            this.bullets.push(new Bullet(bulletX, bulletY, this.player.angle));
-            this.soundManager.playShoot();
+            // Tank shooting
+            const isShooting = this.mouseDown || this.keys[' '];
+            if (isShooting && this.gun.shoot()) {
+                const bulletX = this.tank.x + Math.cos(this.tank.angle) * (CONFIG.tank.cannonLength + 10);
+                const bulletY = this.tank.y + Math.sin(this.tank.angle) * (CONFIG.tank.cannonLength + 10);
+                this.bullets.push(new Bullet(bulletX, bulletY, this.tank.angle));
+                this.soundManager.playShoot();
+            }
+        } else {
+            // Update player
+            this.player.update(deltaTime, this.keys, this.canvas);
+
+            // Update player angle based on mouse (unless spinning)
+            if (!this.player.isSpinShooting) {
+                this.player.angle = Math.atan2(
+                    this.mouseY - this.player.y,
+                    this.mouseX - this.player.x
+                );
+            } else {
+                // Spinning - rotate constantly
+                this.player.angle += CONFIG.spinShoot.rotationSpeed * deltaTime;
+            }
+
+            // Shooting (disabled while hiding, works with or without spinning)
+            const isShooting = this.mouseDown || this.keys[' '];
+            if (isShooting && !this.player.isHiding && this.gun.shoot()) {
+                const bulletX = this.player.x + Math.cos(this.player.angle) * (this.player.radius + 10);
+                const bulletY = this.player.y + Math.sin(this.player.angle) * (this.player.radius + 10);
+                this.bullets.push(new Bullet(bulletX, bulletY, this.player.angle));
+                this.soundManager.playShoot();
+            }
         }
 
         // If shooting while trying to hide, break hiding
@@ -1006,16 +1254,49 @@ class Game {
             }
         }
 
-        // Collision detection: zombies vs player
+        // Collision detection: zombies vs player/tank
         for (const zombie of this.zombies) {
-            const dist = distance(this.player.x, this.player.y, zombie.x, zombie.y);
+            if (this.playerInTank && this.tank) {
+                // Check collision with tank
+                const dist = distance(this.tank.x, this.tank.y, zombie.x, zombie.y);
+                if (dist < (this.tank.width / 2) + zombie.radius) {
+                    if (this.tank.takeDamage(CONFIG.zombie.damage)) {
+                        // Tank destroyed, force player out
+                        this.playerInTank = false;
+                        this.tank.occupied = false;
+                        this.soundManager.playPlayerDamage();
+                    }
+                }
+            } else {
+                // Check collision with player
+                const dist = distance(this.player.x, this.player.y, zombie.x, zombie.y);
+                if (dist < this.player.radius + zombie.radius) {
+                    if (this.player.takeDamage(CONFIG.zombie.damage)) {
+                        this.gameOver();
+                        return;
+                    } else {
+                        this.soundManager.playPlayerDamage();
+                    }
+                }
+            }
+        }
 
-            if (dist < this.player.radius + zombie.radius) {
-                if (this.player.takeDamage(CONFIG.zombie.damage)) {
-                    this.gameOver();
-                    return;
-                } else {
-                    this.soundManager.playPlayerDamage();
+        // Collision detection: bombs vs zombies
+        for (let i = this.bombs.length - 1; i >= 0; i--) {
+            const bomb = this.bombs[i];
+            for (let j = this.zombies.length - 1; j >= 0; j--) {
+                const zombie = this.zombies[j];
+                if (bomb.checkZombieCollision(zombie)) {
+                    // Zombie touched bomb - kill zombie and remove bomb
+                    const randomMessage = ZOMBIE_DEATH_MESSAGES[Math.floor(Math.random() * ZOMBIE_DEATH_MESSAGES.length)];
+                    this.floatingTexts.push(new FloatingText(zombie.x, zombie.y, randomMessage));
+                    this.explosions.push(new Explosion(zombie.x, zombie.y));
+                    this.zombies.splice(j, 1);
+                    this.score += 100;
+                    this.killCount++;
+                    this.soundManager.playZombieDeath();
+                    this.bombs.splice(i, 1);
+                    break;
                 }
             }
         }
@@ -1046,6 +1327,11 @@ class Game {
             if (!this.floatingTexts[i].active) {
                 this.floatingTexts.splice(i, 1);
             }
+        }
+
+        // Update bombs
+        for (const bomb of this.bombs) {
+            bomb.update(deltaTime);
         }
 
         // Update explosions
@@ -1087,6 +1373,16 @@ class Game {
             ammoBox.draw(this.ctx);
         }
 
+        // Draw bombs
+        for (const bomb of this.bombs) {
+            bomb.draw(this.ctx);
+        }
+
+        // Draw tank
+        if (this.tank && this.tank.health > 0) {
+            this.tank.draw(this.ctx);
+        }
+
         // Draw zombies
         for (const zombie of this.zombies) {
             zombie.draw(this.ctx);
@@ -1102,8 +1398,10 @@ class Game {
             explosion.draw(this.ctx);
         }
 
-        // Draw player
-        this.player.draw(this.ctx);
+        // Draw player (only if not in tank)
+        if (!this.playerInTank) {
+            this.player.draw(this.ctx);
+        }
 
         // Draw HUD
         this.drawHUD();
@@ -1115,31 +1413,41 @@ class Game {
         this.ctx.fillStyle = '#ffffff';
         this.ctx.font = 'bold 20px Courier New';
 
+        // Level
+        this.ctx.fillText(`LEVEL: ${this.currentLevel} (${CONFIG.levels[this.currentLevel].name})`, padding, 30);
+
         // Health bar
-        this.ctx.fillText('HEALTH', padding, 30);
+        const healthLabel = this.playerInTank ? 'TANK HEALTH' : 'HEALTH';
+        this.ctx.fillText(healthLabel, padding, 60);
         const healthBarWidth = 200;
         const healthBarHeight = 25;
 
         this.ctx.fillStyle = '#333';
-        this.ctx.fillRect(padding, 40, healthBarWidth, healthBarHeight);
+        this.ctx.fillRect(padding, 70, healthBarWidth, healthBarHeight);
 
-        const healthPercent = this.player.health / this.player.maxHealth;
+        const currentHealth = this.playerInTank ? this.tank.health : this.player.health;
+        const maxHealth = this.playerInTank ? this.tank.maxHealth : this.player.maxHealth;
+        const healthPercent = currentHealth / maxHealth;
         const healthColor = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.25 ? '#ffaa00' : '#ff0000';
         this.ctx.fillStyle = healthColor;
-        this.ctx.fillRect(padding, 40, healthBarWidth * healthPercent, healthBarHeight);
+        this.ctx.fillRect(padding, 70, healthBarWidth * healthPercent, healthBarHeight);
 
         this.ctx.strokeStyle = '#ffffff';
         this.ctx.lineWidth = 2;
-        this.ctx.strokeRect(padding, 40, healthBarWidth, healthBarHeight);
+        this.ctx.strokeRect(padding, 70, healthBarWidth, healthBarHeight);
 
         // Ammo
         this.ctx.fillStyle = '#ffffff';
-        this.ctx.fillText(`AMMO: ${this.gun.currentAmmo} / ${this.gun.reserveAmmo}`, padding, 100);
+        this.ctx.fillText(`AMMO: ${this.gun.currentAmmo} / ${this.gun.reserveAmmo}`, padding, 120);
 
         if (this.gun.isReloading) {
             this.ctx.fillStyle = '#ffaa00';
-            this.ctx.fillText('RELOADING...', padding, 125);
+            this.ctx.fillText('RELOADING...', padding, 145);
         }
+
+        // Bombs
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.fillText(`BOMBS: ${this.bombCount}`, padding, 170);
 
         // Score and time
         this.ctx.textAlign = 'right';
