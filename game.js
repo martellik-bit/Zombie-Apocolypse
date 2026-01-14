@@ -68,8 +68,12 @@ const CONFIG = {
     bomb: {
         radius: 40,
         explosionRadius: 80,
-        maxBombs: 5,
+        maxBombs: 1,
         color: '#333333'
+    },
+    game: {
+        maxZombies: 50,
+        killsToWin: 20
     },
     tank: {
         width: 60,
@@ -1106,6 +1110,19 @@ class Game {
             true);
     }
 
+    winGame() {
+        this.state = GAME_STATES.GAME_OVER;
+
+        if (this.score > this.bestScore) {
+            this.bestScore = this.score;
+            this.saveBestScore(this.bestScore);
+        }
+
+        this.showOverlay('YOU WIN!',
+            `20 Zombies Defeated!<br>Score: ${this.score}<br>Best: ${this.bestScore}<br>Time: ${this.formatTime(this.gameTime)}`,
+            true);
+    }
+
     showOverlay(title, text, showButton = false) {
         this.overlay.innerHTML = `
             <div class="overlay-title">${title}</div>
@@ -1141,10 +1158,33 @@ class Game {
 
     dropBomb() {
         if (this.bombCount <= 0) return;
-        if (this.playerInTank) return; // Can't drop bombs in tank
 
-        this.bombs.push(new Bomb(this.player.x, this.player.y));
-        this.bombCount--;
+        if (this.playerInTank) {
+            // In tank: bomb kills ALL zombies on the map
+            const zombieCount = this.zombies.length;
+            for (let i = this.zombies.length - 1; i >= 0; i--) {
+                const zombie = this.zombies[i];
+                // Add death message and explosion for each zombie
+                const randomMessage = ZOMBIE_DEATH_MESSAGES[Math.floor(Math.random() * ZOMBIE_DEATH_MESSAGES.length)];
+                this.floatingTexts.push(new FloatingText(zombie.x, zombie.y, randomMessage));
+                this.explosions.push(new Explosion(zombie.x, zombie.y));
+                this.score += 100;
+                this.killCount++;
+                this.soundManager.playZombieDeath();
+            }
+            // Clear all zombies
+            this.zombies = [];
+            this.bombCount--;
+
+            // Check for win condition
+            if (this.killCount >= CONFIG.game.killsToWin) {
+                this.winGame();
+            }
+        } else {
+            // On foot: drop a regular bomb
+            this.bombs.push(new Bomb(this.player.x, this.player.y));
+            this.bombCount--;
+        }
     }
 
     toggleTank() {
@@ -1298,10 +1338,13 @@ class Game {
             zombie.update(deltaTime, this.player);
         }
 
-        // Spawn zombies
+        // Spawn zombies (max 50 on screen)
         this.zombieSpawnTimer -= deltaTime * 1000;
         if (this.zombieSpawnTimer <= 0) {
-            this.spawnZombie();
+            // Only spawn if under the max zombie limit
+            if (this.zombies.length < CONFIG.game.maxZombies) {
+                this.spawnZombie();
+            }
             this.zombieSpawnTimer = this.zombieSpawnRate;
 
             // Increase difficulty over time
@@ -1348,6 +1391,12 @@ class Game {
                         this.score += 100;
                         this.killCount++;
                         this.soundManager.playZombieDeath();
+
+                        // Check for win condition
+                        if (this.killCount >= CONFIG.game.killsToWin) {
+                            this.winGame();
+                            return;
+                        }
 
                         // Spawn ammo box every 2 kills
                         if (this.killCount % 2 === 0) {
@@ -1402,6 +1451,12 @@ class Game {
                     this.killCount++;
                     this.soundManager.playZombieDeath();
                     this.bombs.splice(i, 1);
+
+                    // Check for win condition
+                    if (this.killCount >= CONFIG.game.killsToWin) {
+                        this.winGame();
+                        return;
+                    }
                     break;
                 }
             }
