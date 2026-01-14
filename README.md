@@ -35,6 +35,7 @@ A browser-based top-down 2D survival shooter game built with HTML5 Canvas and va
 - Magazine and reserve ammo system with reload mechanic
 - **Spin shooting mechanic** - Press F to rotate and auto-shoot in all directions
 - **Ammo drop system** - Collect falling ammo boxes after killing zombies
+- **Sound effects** - Procedurally generated sounds using Web Audio API (shooting, zombie deaths, damage, ammo pickup, reload)
 - Hide & seek mechanics with aggro system
 - Progressive difficulty scaling
 - HUD showing health, ammo, score, and time
