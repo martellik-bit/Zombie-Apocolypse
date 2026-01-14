@@ -5,16 +5,21 @@ A browser-based top-down 2D survival shooter game built with HTML5 Canvas and va
 ## How to Play
 
 1. Open `index.html` in any modern web browser
-2. Click "START GAME" to begin
+2. Select your difficulty level:
+   - **Easy** - Zombies have 50 HP, slower spawn rate
+   - **Medium** - Zombies have 100 HP, normal spawn rate
+   - **Hard** - Zombies have 150 HP, faster spawn rate
 
 ## Controls
 
-- **WASD** or **Arrow Keys** - Move player
+- **WASD** or **Arrow Keys** - Move player / Drive tank
 - **Mouse** - Aim weapon
 - **Left Click** or **Spacebar** - Shoot
 - **R** - Reload weapon
 - **E** - Hide in nearby crate (when close enough)
 - **F** - Spin gun (rotate aim continuously)
+- **B** - Drop bomb (kills zombies on contact)
+- **T** - Enter/Exit tank
 - **P** - Pause game
 
 ## Gameplay
@@ -23,24 +28,32 @@ A browser-based top-down 2D survival shooter game built with HTML5 Canvas and va
 - Zombies spawn at the edges and chase you down
 - Use hide spots (crates) to break line of sight - zombies will lose aggro after 2 seconds and wander
 - Shooting while hiding will break your cover
+- **Choose your difficulty** - Easy, Medium, or Hard affects zombie health and spawn rate
 - **Collect ammo drops** - Orange ammo boxes fall from the sky after every 2 zombie kills
 - Use **gun spinning** (F key) to continuously rotate your aim while shooting with spacebar
-- Zombies cry "Ouch you got me!" when defeated
+- **Drop bombs** (B key) - Start with 5 bombs that kill zombies on contact
+- **Drive the tank** (T key) - Enter the tank for 300 HP protection, fire from inside, exit anytime
+- Zombies cry "Ouch you got me!" and other random messages when defeated
+- Watch explosive particle effects when zombies die
 - Manage your ammo carefully - you have limited reserve ammunition
 - Difficulty increases over time as zombies spawn faster and move quicker
 
 ## Features
 
 - Smooth deltaTime-based movement
+- **Three difficulty levels** - Easy, Medium, and Hard with different zombie health and spawn rates
 - Invulnerability frames after taking damage
 - Magazine and reserve ammo system with reload mechanic
 - **Gun spinning mechanic** - Press F to continuously rotate your aim, shoot with spacebar
+- **Bomb system** - Drop 5 bombs that kill zombies on contact with explosion effects
+- **Tank vehicle** - Enter/exit a tank with 300 HP, drive around, and shoot from protection
 - **Ammo drop system** - Collect falling ammo boxes after killing zombies
-- **Floating death messages** - Zombies display "Ouch you got me!" when eliminated
+- **Explosion particle effects** - Colorful particles burst out when zombies die
+- **Floating death messages** - Zombies display random humorous death messages
 - **Sound effects** - Procedurally generated sounds using Web Audio API (shooting, zombie deaths, damage, ammo pickup, reload)
 - Hide & seek mechanics with aggro system
-- Progressive difficulty scaling
-- HUD showing health, ammo, score, and time
+- Progressive difficulty scaling within each level
+- HUD showing level, health/tank health, ammo, bombs, score, and time
 - Best score persistence using localStorage
 - Pause and restart functionality
 
