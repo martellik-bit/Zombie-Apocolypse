@@ -17,7 +17,7 @@ const CONFIG = {
     },
     gun: {
         magazineSize: 12,
-        reserveAmmo: 60,
+        reserveAmmo: 500,
         reloadTime: 1500,
         fireRate: 200, // ms between shots
         bulletSpeed: 600,
@@ -50,7 +50,16 @@ const CONFIG = {
         height: 20,
         fallSpeed: 100,
         ammoAmount: 24, // 2 full magazines
-        color: '#ffa500'
+        color: '#ffa500',
+        spawnRate: 8000 // Sporadic spawn every 8 seconds on average
+    },
+    healthBox: {
+        width: 30,
+        height: 30,
+        fallSpeed: 100,
+        healAmount: 30,
+        color: '#00ff00',
+        spawnRate: 12000 // Sporadic spawn every 12 seconds on average
     },
     spinShoot: {
         rotationSpeed: 10, // radians per second
@@ -490,6 +499,50 @@ class AmmoBox {
     }
 }
 
+// HealthBox class
+class HealthBox {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.width = CONFIG.healthBox.width;
+        this.height = CONFIG.healthBox.height;
+        this.speed = CONFIG.healthBox.fallSpeed;
+        this.healAmount = CONFIG.healthBox.healAmount;
+        this.active = true;
+    }
+
+    update(deltaTime, canvas) {
+        this.y += this.speed * deltaTime;
+
+        // Remove if off screen
+        if (this.y > canvas.height + this.height) {
+            this.active = false;
+        }
+    }
+
+    draw(ctx) {
+        // Health box
+        ctx.fillStyle = CONFIG.healthBox.color;
+        ctx.fillRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+
+        // Border
+        ctx.strokeStyle = '#00cc00';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+
+        // Health cross icon
+        ctx.fillStyle = '#ffffff';
+        // Vertical bar
+        ctx.fillRect(this.x - 2, this.y - 8, 4, 16);
+        // Horizontal bar
+        ctx.fillRect(this.x - 8, this.y - 2, 16, 4);
+    }
+
+    checkCollision(player) {
+        return distance(this.x, this.y, player.x, player.y) < player.radius + this.width / 2;
+    }
+}
+
 // FloatingText class
 class FloatingText {
     constructor(x, y, text) {
@@ -875,6 +928,7 @@ class Game {
         this.zombies = [];
         this.hideSpots = [];
         this.ammoBoxes = [];
+        this.healthBoxes = [];
         this.floatingTexts = [];
         this.explosions = [];
         this.bombs = [];
@@ -892,6 +946,8 @@ class Game {
         this.zombieSpawnRate = CONFIG.zombie.spawnRate;
         this.zombieSpeed = CONFIG.zombie.baseSpeed;
         this.zombieHealth = 100;
+        this.ammoBoxSpawnTimer = 0;
+        this.healthBoxSpawnTimer = 0;
 
         this.lastTime = 0;
 
@@ -1000,9 +1056,12 @@ class Game {
         this.zombieHealth = levelConfig.zombieHealth;
         this.bombCount = CONFIG.bomb.maxBombs;
         this.ammoBoxes = [];
+        this.healthBoxes = [];
         this.floatingTexts = [];
         this.explosions = [];
         this.killCount = 0;
+        this.ammoBoxSpawnTimer = CONFIG.ammoBox.spawnRate;
+        this.healthBoxSpawnTimer = CONFIG.healthBox.spawnRate;
     }
 
     pauseGame() {
@@ -1090,6 +1149,12 @@ class Game {
         const x = Math.random() * (this.canvas.width - 100) + 50;
         const y = -20; // Start above the screen
         this.ammoBoxes.push(new AmmoBox(x, y));
+    }
+
+    spawnHealthBox() {
+        const x = Math.random() * (this.canvas.width - 100) + 50;
+        const y = -20; // Start above the screen
+        this.healthBoxes.push(new HealthBox(x, y));
     }
 
     spawnZombie() {
@@ -1222,6 +1287,22 @@ class Game {
             }
         }
 
+        // Sporadic ammo box spawns
+        this.ammoBoxSpawnTimer -= deltaTime * 1000;
+        if (this.ammoBoxSpawnTimer <= 0) {
+            this.spawnAmmoBox();
+            // Add some randomness to spawn rate (±2 seconds)
+            this.ammoBoxSpawnTimer = CONFIG.ammoBox.spawnRate + (Math.random() - 0.5) * 4000;
+        }
+
+        // Sporadic health box spawns
+        this.healthBoxSpawnTimer -= deltaTime * 1000;
+        if (this.healthBoxSpawnTimer <= 0) {
+            this.spawnHealthBox();
+            // Add some randomness to spawn rate (±3 seconds)
+            this.healthBoxSpawnTimer = CONFIG.healthBox.spawnRate + (Math.random() - 0.5) * 6000;
+        }
+
         // Collision detection: bullets vs zombies
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             const bullet = this.bullets[i];
@@ -1320,6 +1401,30 @@ class Game {
             }
         }
 
+        // Update health boxes
+        for (let i = this.healthBoxes.length - 1; i >= 0; i--) {
+            this.healthBoxes[i].update(deltaTime, this.canvas);
+
+            // Check collision with player
+            if (this.healthBoxes[i].checkCollision(this.player)) {
+                // Heal player (don't exceed max health)
+                if (!this.playerInTank) {
+                    this.player.health = Math.min(this.player.maxHealth, this.player.health + this.healthBoxes[i].healAmount);
+                } else if (this.tank) {
+                    // Heal tank if player is in tank
+                    this.tank.health = Math.min(this.tank.maxHealth, this.tank.health + this.healthBoxes[i].healAmount);
+                }
+                this.soundManager.playAmmoPickup(); // Use same sound for now
+                this.healthBoxes.splice(i, 1);
+                continue;
+            }
+
+            // Remove if inactive
+            if (!this.healthBoxes[i].active) {
+                this.healthBoxes.splice(i, 1);
+            }
+        }
+
         // Update floating texts
         for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
             this.floatingTexts[i].update(deltaTime);
@@ -1372,6 +1477,11 @@ class Game {
         // Draw ammo boxes
         for (const ammoBox of this.ammoBoxes) {
             ammoBox.draw(this.ctx);
+        }
+
+        // Draw health boxes
+        for (const healthBox of this.healthBoxes) {
+            healthBox.draw(this.ctx);
         }
 
         // Draw bombs
