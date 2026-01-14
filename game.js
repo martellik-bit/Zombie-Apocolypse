@@ -1350,12 +1350,15 @@ class Game {
         this.ctx.fillStyle = '#2a2a2a';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
+        // Don't render if player not initialized
+        if (!this.player) return;
+
         // Draw hide spots
         for (const spot of this.hideSpots) {
             spot.draw(this.ctx);
 
             // Draw interaction prompt
-            if (spot.isPlayerNear(this.player) && !this.player.isHiding) {
+            if (this.player && spot.isPlayerNear(this.player) && !this.player.isHiding) {
                 this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
                 this.ctx.font = '16px Courier New';
                 this.ctx.textAlign = 'center';
