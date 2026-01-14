@@ -44,6 +44,17 @@ const CONFIG = {
     bullet: {
         radius: 4,
         color: '#ffff00'
+    },
+    ammoBox: {
+        width: 30,
+        height: 20,
+        fallSpeed: 100,
+        ammoAmount: 24, // 2 full magazines
+        color: '#ffa500'
+    },
+    spinShoot: {
+        rotationSpeed: 10, // radians per second
+        shootInterval: 100 // ms between shots while spinning
     }
 };
 
@@ -69,6 +80,8 @@ class Player {
         this.isHiding = false;
         this.invulnerable = false;
         this.invulnerabilityTimer = 0;
+        this.isSpinShooting = false;
+        this.spinShootTimer = 0;
     }
 
     update(deltaTime, keys, canvas) {
@@ -127,7 +140,11 @@ class Player {
 
         // Player body (flashing when invulnerable)
         if (!this.invulnerable || Math.floor(Date.now() / 100) % 2 === 0) {
-            ctx.fillStyle = this.isHiding ? '#006600' : CONFIG.player.color;
+            let playerColor = CONFIG.player.color;
+            if (this.isHiding) playerColor = '#006600';
+            if (this.isSpinShooting) playerColor = '#ffaa00'; // Orange when spin shooting
+
+            ctx.fillStyle = playerColor;
             ctx.beginPath();
             ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
             ctx.fill();
@@ -145,6 +162,14 @@ class Player {
             ctx.font = '14px Courier New';
             ctx.textAlign = 'center';
             ctx.fillText('HIDING', this.x, this.y - this.radius - 10);
+        }
+
+        // Spin shooting indicator
+        if (this.isSpinShooting) {
+            ctx.fillStyle = 'rgba(255, 170, 0, 0.8)';
+            ctx.font = '14px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText('SPIN SHOOTING!', this.x, this.y - this.radius - 10);
         }
     }
 }
@@ -232,6 +257,49 @@ class Bullet {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
+    }
+}
+
+// AmmoBox class
+class AmmoBox {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.width = CONFIG.ammoBox.width;
+        this.height = CONFIG.ammoBox.height;
+        this.speed = CONFIG.ammoBox.fallSpeed;
+        this.ammoAmount = CONFIG.ammoBox.ammoAmount;
+        this.active = true;
+    }
+
+    update(deltaTime, canvas) {
+        this.y += this.speed * deltaTime;
+
+        // Remove if off screen
+        if (this.y > canvas.height + this.height) {
+            this.active = false;
+        }
+    }
+
+    draw(ctx) {
+        // Ammo box
+        ctx.fillStyle = CONFIG.ammoBox.color;
+        ctx.fillRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+
+        // Border
+        ctx.strokeStyle = '#ff8800';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+
+        // Ammo icon (simple bullets)
+        ctx.fillStyle = '#ffff00';
+        ctx.fillRect(this.x - 8, this.y - 4, 4, 8);
+        ctx.fillRect(this.x - 2, this.y - 4, 4, 8);
+        ctx.fillRect(this.x + 4, this.y - 4, 4, 8);
+    }
+
+    checkCollision(player) {
+        return distance(this.x, this.y, player.x, player.y) < player.radius + this.width / 2;
     }
 }
 
@@ -377,6 +445,8 @@ class Game {
         this.bullets = [];
         this.zombies = [];
         this.hideSpots = [];
+        this.ammoBoxes = [];
+        this.killCount = 0;
 
         this.score = 0;
         this.bestScore = this.loadBestScore();
@@ -402,6 +472,9 @@ class Game {
                 }
                 if (e.key === 'e' || e.key === 'E') {
                     this.toggleHiding();
+                }
+                if (e.key === 'f' || e.key === 'F') {
+                    this.toggleSpinShoot();
                 }
                 if (e.key === 'p' || e.key === 'P') {
                     this.pauseGame();
@@ -462,6 +535,8 @@ class Game {
         this.zombieSpawnTimer = 0;
         this.zombieSpawnRate = CONFIG.zombie.spawnRate;
         this.zombieSpeed = CONFIG.zombie.baseSpeed;
+        this.ammoBoxes = [];
+        this.killCount = 0;
     }
 
     pauseGame() {
@@ -515,6 +590,18 @@ class Game {
         }
     }
 
+    toggleSpinShoot() {
+        if (this.player.isHiding) return; // Can't spin shoot while hiding
+        this.player.isSpinShooting = !this.player.isSpinShooting;
+        this.player.spinShootTimer = 0;
+    }
+
+    spawnAmmoBox() {
+        const x = Math.random() * (this.canvas.width - 100) + 50;
+        const y = -20; // Start above the screen
+        this.ammoBoxes.push(new AmmoBox(x, y));
+    }
+
     spawnZombie() {
         const side = Math.floor(Math.random() * 4);
         let x, y;
@@ -547,15 +634,29 @@ class Game {
         // Update player
         this.player.update(deltaTime, this.keys, this.canvas);
 
-        // Update player angle based on mouse
-        this.player.angle = Math.atan2(
-            this.mouseY - this.player.y,
-            this.mouseX - this.player.x
-        );
+        // Update player angle based on mouse (unless spin shooting)
+        if (!this.player.isSpinShooting) {
+            this.player.angle = Math.atan2(
+                this.mouseY - this.player.y,
+                this.mouseX - this.player.x
+            );
+        } else {
+            // Spin shooting - rotate constantly
+            this.player.angle += CONFIG.spinShoot.rotationSpeed * deltaTime;
 
-        // Shooting (disabled while hiding)
+            // Auto-shoot while spinning
+            this.player.spinShootTimer += deltaTime * 1000;
+            if (this.player.spinShootTimer >= CONFIG.spinShoot.shootInterval && this.gun.shoot()) {
+                const bulletX = this.player.x + Math.cos(this.player.angle) * (this.player.radius + 10);
+                const bulletY = this.player.y + Math.sin(this.player.angle) * (this.player.radius + 10);
+                this.bullets.push(new Bullet(bulletX, bulletY, this.player.angle));
+                this.player.spinShootTimer = 0;
+            }
+        }
+
+        // Regular shooting (disabled while hiding or spin shooting)
         const isShooting = this.mouseDown || this.keys[' '];
-        if (isShooting && !this.player.isHiding && this.gun.shoot()) {
+        if (isShooting && !this.player.isHiding && !this.player.isSpinShooting && this.gun.shoot()) {
             const bulletX = this.player.x + Math.cos(this.player.angle) * (this.player.radius + 10);
             const bulletY = this.player.y + Math.sin(this.player.angle) * (this.player.radius + 10);
             this.bullets.push(new Bullet(bulletX, bulletY, this.player.angle));
@@ -607,6 +708,12 @@ class Game {
                     if (zombie.takeDamage(bullet.damage)) {
                         this.zombies.splice(j, 1);
                         this.score += 100;
+                        this.killCount++;
+
+                        // Spawn ammo box every 2 kills
+                        if (this.killCount % 2 === 0) {
+                            this.spawnAmmoBox();
+                        }
                     }
                     this.bullets.splice(i, 1);
                     break;
@@ -623,6 +730,23 @@ class Game {
                     this.gameOver();
                     return;
                 }
+            }
+        }
+
+        // Update ammo boxes
+        for (let i = this.ammoBoxes.length - 1; i >= 0; i--) {
+            this.ammoBoxes[i].update(deltaTime, this.canvas);
+
+            // Check collision with player
+            if (this.ammoBoxes[i].checkCollision(this.player)) {
+                this.gun.reserveAmmo += this.ammoBoxes[i].ammoAmount;
+                this.ammoBoxes.splice(i, 1);
+                continue;
+            }
+
+            // Remove if inactive
+            if (!this.ammoBoxes[i].active) {
+                this.ammoBoxes.splice(i, 1);
             }
         }
     }
@@ -648,6 +772,11 @@ class Game {
         // Draw bullets
         for (const bullet of this.bullets) {
             bullet.draw(this.ctx);
+        }
+
+        // Draw ammo boxes
+        for (const ammoBox of this.ammoBoxes) {
+            ammoBox.draw(this.ctx);
         }
 
         // Draw zombies
