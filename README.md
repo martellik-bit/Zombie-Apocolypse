@@ -12,9 +12,10 @@ A browser-based top-down 2D survival shooter game built with HTML5 Canvas and va
 
 ## Controls
 
-- **WASD** or **Arrow Keys** - Move player / Drive tank
-- **Mouse** - Aim weapon
-- **Left Click** or **Spacebar** - Shoot
+- **Mouse Movement** - Move your avatar (avatar follows mouse cursor)
+- **Mouse** - Aim weapon (gun always points at mouse)
+- **Spacebar** - Shoot
+- **WASD** or **Arrow Keys** - Drive tank (when inside tank)
 - **R** - Reload weapon
 - **E** - Hide in nearby crate (when close enough)
 - **F** - Spin gun (rotate aim continuously)

@@ -280,26 +280,21 @@ class Player {
         this.spinShootTimer = 0;
     }
 
-    update(deltaTime, keys, canvas) {
+    update(deltaTime, keys, canvas, mouseX, mouseY) {
         if (this.isHiding) return;
 
-        let dx = 0;
-        let dy = 0;
+        // Move toward mouse cursor
+        const distToMouse = distance(this.x, this.y, mouseX, mouseY);
 
-        if (keys['w'] || keys['W'] || keys['ArrowUp']) dy -= 1;
-        if (keys['s'] || keys['S'] || keys['ArrowDown']) dy += 1;
-        if (keys['a'] || keys['A'] || keys['ArrowLeft']) dx -= 1;
-        if (keys['d'] || keys['D'] || keys['ArrowRight']) dx += 1;
+        // Only move if mouse is far enough away (dead zone of 5 pixels)
+        if (distToMouse > 5) {
+            // Calculate direction to mouse
+            const angle = Math.atan2(mouseY - this.y, mouseX - this.x);
 
-        // Normalize diagonal movement
-        if (dx !== 0 && dy !== 0) {
-            dx *= 0.707;
-            dy *= 0.707;
+            // Move toward mouse
+            this.x += Math.cos(angle) * this.speed * deltaTime;
+            this.y += Math.sin(angle) * this.speed * deltaTime;
         }
-
-        // Move player
-        this.x += dx * this.speed * deltaTime;
-        this.y += dy * this.speed * deltaTime;
 
         // Keep player in bounds
         this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
@@ -1186,11 +1181,11 @@ class Game {
     updateGame(deltaTime) {
         this.gameTime += deltaTime;
 
-        // Check if player is shooting (used in multiple places below)
-        const isShooting = this.mouseDown || this.keys[' '];
+        // Check if player is shooting with spacebar
+        const isShooting = this.keys[' '];
 
         if (this.playerInTank && this.tank) {
-            // Update tank movement
+            // Update tank movement with WASD
             let dx = 0;
             let dy = 0;
 
@@ -1222,16 +1217,16 @@ class Game {
             );
             this.player.angle = this.tank.angle;
 
-            // Tank shooting
-            if (isShooting && this.gun.shoot()) {
+            // Tank shooting with spacebar
+            if (this.keys[' '] && this.gun.shoot()) {
                 const bulletX = this.tank.x + Math.cos(this.tank.angle) * (CONFIG.tank.cannonLength + 10);
                 const bulletY = this.tank.y + Math.sin(this.tank.angle) * (CONFIG.tank.cannonLength + 10);
                 this.bullets.push(new Bullet(bulletX, bulletY, this.tank.angle));
                 this.soundManager.playShoot();
             }
         } else {
-            // Update player
-            this.player.update(deltaTime, this.keys, this.canvas);
+            // Update player (moves toward mouse)
+            this.player.update(deltaTime, this.keys, this.canvas, this.mouseX, this.mouseY);
 
             // Update player angle based on mouse (unless spinning)
             if (!this.player.isSpinShooting) {
@@ -1244,8 +1239,8 @@ class Game {
                 this.player.angle += CONFIG.spinShoot.rotationSpeed * deltaTime;
             }
 
-            // Shooting (disabled while hiding, works with or without spinning)
-            if (isShooting && !this.player.isHiding && this.gun.shoot()) {
+            // Shooting with spacebar only (disabled while hiding, works with or without spinning)
+            if (this.keys[' '] && !this.player.isHiding && this.gun.shoot()) {
                 const bulletX = this.player.x + Math.cos(this.player.angle) * (this.player.radius + 10);
                 const bulletY = this.player.y + Math.sin(this.player.angle) * (this.player.radius + 10);
                 this.bullets.push(new Bullet(bulletX, bulletY, this.player.angle));
