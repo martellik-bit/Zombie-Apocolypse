@@ -16,8 +16,8 @@ const CONFIG = {
         color: '#00ff00'
     },
     gun: {
-        magazineSize: 12,
-        reserveAmmo: 500,
+        magazineSize: 500,
+        reserveAmmo: 0,
         reloadTime: 1500,
         fireRate: 200, // ms between shots
         bulletSpeed: 600,
@@ -49,7 +49,7 @@ const CONFIG = {
         width: 30,
         height: 20,
         fallSpeed: 100,
-        ammoAmount: 24, // 2 full magazines
+        ammoAmount: 12,
         color: '#ffa500',
         spawnRate: 8000 // Sporadic spawn every 8 seconds on average
     },
@@ -278,6 +278,8 @@ class Player {
         this.invulnerabilityTimer = 0;
         this.isSpinShooting = false;
         this.spinShootTimer = 0;
+        this.invincibilityMode = false;
+        this.invincibilityTimer = 0;
     }
 
     update(deltaTime, keys, canvas, mouseX, mouseY) {
@@ -307,10 +309,18 @@ class Player {
                 this.invulnerable = false;
             }
         }
+
+        // Update invincibility mode (I key power-up)
+        if (this.invincibilityMode) {
+            this.invincibilityTimer -= deltaTime * 1000;
+            if (this.invincibilityTimer <= 0) {
+                this.invincibilityMode = false;
+            }
+        }
     }
 
     takeDamage(amount) {
-        if (this.invulnerable || this.isHiding) return false;
+        if (this.invulnerable || this.isHiding || this.invincibilityMode) return false;
 
         this.health -= amount;
         this.invulnerable = true;
@@ -334,6 +344,7 @@ class Player {
             let playerColor = CONFIG.player.color;
             if (this.isHiding) playerColor = '#006600';
             if (this.isSpinShooting) playerColor = '#ffaa00'; // Orange when spin shooting
+            if (this.invincibilityMode) playerColor = '#ffd700'; // Gold when invincible
 
             ctx.fillStyle = playerColor;
             ctx.beginPath();
@@ -361,6 +372,15 @@ class Player {
             ctx.font = '14px Courier New';
             ctx.textAlign = 'center';
             ctx.fillText('SPINNING!', this.x, this.y - this.radius - 10);
+        }
+
+        // Invincibility indicator
+        if (this.invincibilityMode) {
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
+            ctx.font = 'bold 14px Courier New';
+            ctx.textAlign = 'center';
+            const timeLeft = Math.ceil(this.invincibilityTimer / 1000);
+            ctx.fillText(`INVINCIBLE! (${timeLeft}s)`, this.x, this.y - this.radius - 10);
         }
     }
 }
@@ -978,6 +998,9 @@ class Game {
                 if (e.key === 'p' || e.key === 'P') {
                     this.pauseGame();
                 }
+                if (e.key === 'i' || e.key === 'I') {
+                    this.activateInvincibility();
+                }
             } else if (this.state === GAME_STATES.PAUSED) {
                 if (e.key === 'p' || e.key === 'P') {
                     this.resumeGame();
@@ -1138,6 +1161,12 @@ class Game {
             this.playerInTank = true;
             this.tank.occupied = true;
         }
+    }
+
+    activateInvincibility() {
+        // Activate 5-second invincibility mode
+        this.player.invincibilityMode = true;
+        this.player.invincibilityTimer = 5000; // 5 seconds
     }
 
     spawnAmmoBox() {
@@ -1384,16 +1413,8 @@ class Game {
 
             // Check collision with player
             if (this.ammoBoxes[i].checkCollision(this.player)) {
-                // Add ammo to reserve
-                this.gun.reserveAmmo += this.ammoBoxes[i].ammoAmount;
-
-                // If magazine is empty or low, automatically top it off from reserve
-                if (this.gun.currentAmmo < this.gun.magazineSize && this.gun.reserveAmmo > 0) {
-                    const ammoNeeded = this.gun.magazineSize - this.gun.currentAmmo;
-                    const ammoToAdd = Math.min(ammoNeeded, this.gun.reserveAmmo);
-                    this.gun.currentAmmo += ammoToAdd;
-                    this.gun.reserveAmmo -= ammoToAdd;
-                }
+                // Add ammo directly to magazine (up to max magazine size)
+                this.gun.currentAmmo = Math.min(this.gun.magazineSize, this.gun.currentAmmo + this.ammoBoxes[i].ammoAmount);
 
                 this.soundManager.playAmmoPickup();
                 this.ammoBoxes.splice(i, 1);

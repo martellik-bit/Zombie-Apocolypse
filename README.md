@@ -21,6 +21,7 @@ A browser-based top-down 2D survival shooter game built with HTML5 Canvas and va
 - **F** - Spin gun (rotate aim continuously)
 - **B** - Drop bomb (kills zombies on contact)
 - **T** - Enter/Exit tank
+- **I** - Activate invincibility for 5 seconds (can still shoot!)
 - **P** - Pause game
 
 ## Gameplay
@@ -30,28 +31,31 @@ A browser-based top-down 2D survival shooter game built with HTML5 Canvas and va
 - Use hide spots (crates) to break line of sight - zombies will lose aggro after 2 seconds and wander
 - Shooting while hiding will break your cover
 - **Choose your difficulty** - Easy, Medium, or Hard affects zombie health and spawn rate
-- **Start with 500 bullets** - Plenty of ammo to get you started!
-- **Collect ammo drops** - Orange ammo boxes fall from the sky sporadically AND after every 2 zombie kills
+- **Start with 500 bullets** - Huge magazine capacity, no reloading needed for a while!
+- **Collect ammo drops** - Orange ammo boxes add 12 bullets and fall sporadically + after zombie kills
 - **Collect health drops** - Green health boxes with medical crosses fall sporadically, restoring 30 HP
 - Use **gun spinning** (F key) to continuously rotate your aim while shooting with spacebar
 - **Drop bombs** (B key) - Start with 5 bombs that kill zombies on contact
 - **Drive the tank** (T key) - Enter the tank for 300 HP protection, fire from inside, exit anytime
+- **Invincibility mode** (I key) - Become invincible for 5 seconds while still being able to shoot!
 - Zombies cry "Ouch you got me!" and other random messages when defeated
 - Watch explosive particle effects when zombies die
-- Manage your ammo carefully, but don't worry - ammo drops frequently!
+- Manage your ammo - pick up drops to keep your magazine full!
 - Difficulty increases over time as zombies spawn faster and move quicker
 
 ## Features
 
 - Smooth deltaTime-based movement
+- **Mouse-follow controls** - Avatar follows your mouse cursor for intuitive movement
 - **Three difficulty levels** - Easy, Medium, and Hard with different zombie health and spawn rates
-- **500 starting bullets** - Start with plenty of reserve ammunition
+- **500 starting bullets** - Start with a massive 500-bullet magazine capacity
 - Invulnerability frames after taking damage
-- Magazine and reserve ammo system with reload mechanic
+- Large magazine capacity ammo system
+- **Invincibility mode** - Press I for 5 seconds of invincibility while keeping shooting ability
 - **Gun spinning mechanic** - Press F to continuously rotate your aim, shoot with spacebar
 - **Bomb system** - Drop 5 bombs that kill zombies on contact with explosion effects
 - **Tank vehicle** - Enter/exit a tank with 300 HP, drive around, and shoot from protection
-- **Ammo drop system** - Collect falling orange ammo boxes (spawn sporadically + after zombie kills)
+- **Ammo drop system** - Collect falling orange ammo boxes that add 12 bullets (spawn sporadically + after zombie kills)
 - **Health drop system** - Collect falling green health boxes to restore 30 HP (spawn sporadically)
 - **Explosion particle effects** - Colorful particles burst out when zombies die
 - **Floating death messages** - Zombies display random humorous death messages
