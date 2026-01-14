@@ -488,6 +488,93 @@ class FloatingText {
     }
 }
 
+// Particle class
+class Particle {
+    constructor(x, y, angle, speed, color) {
+        this.x = x;
+        this.y = y;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.color = color;
+        this.radius = 3 + Math.random() * 3; // 3-6 pixels
+        this.lifetime = 500 + Math.random() * 500; // 0.5-1 second
+        this.age = 0;
+        this.active = true;
+        this.gravity = 200; // Particles fall down
+    }
+
+    update(deltaTime) {
+        this.age += deltaTime * 1000;
+
+        // Apply velocity
+        this.x += this.vx * deltaTime;
+        this.y += this.vy * deltaTime;
+
+        // Apply gravity
+        this.vy += this.gravity * deltaTime;
+
+        // Slow down over time
+        this.vx *= 0.98;
+
+        if (this.age >= this.lifetime) {
+            this.active = false;
+        }
+    }
+
+    draw(ctx) {
+        const alpha = 1 - (this.age / this.lifetime);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+// Explosion class
+class Explosion {
+    constructor(x, y) {
+        this.particles = [];
+        this.active = true;
+
+        // Create particles in all directions
+        const particleCount = 15 + Math.floor(Math.random() * 10); // 15-25 particles
+        const colors = ['#ff4444', '#ff8844', '#ffaa44', '#ff6666', '#ffcc44'];
+
+        for (let i = 0; i < particleCount; i++) {
+            const angle = (Math.PI * 2 / particleCount) * i + (Math.random() - 0.5) * 0.5;
+            const speed = 100 + Math.random() * 150; // 100-250 pixels/sec
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            this.particles.push(new Particle(x, y, angle, speed, color));
+        }
+    }
+
+    update(deltaTime) {
+        let allInactive = true;
+
+        for (const particle of this.particles) {
+            particle.update(deltaTime);
+            if (particle.active) {
+                allInactive = false;
+            }
+        }
+
+        if (allInactive) {
+            this.active = false;
+        }
+    }
+
+    draw(ctx) {
+        for (const particle of this.particles) {
+            if (particle.active) {
+                particle.draw(ctx);
+            }
+        }
+    }
+}
+
 // Zombie class
 class Zombie {
     constructor(x, y, speed) {
@@ -632,6 +719,7 @@ class Game {
         this.hideSpots = [];
         this.ammoBoxes = [];
         this.floatingTexts = [];
+        this.explosions = [];
         this.killCount = 0;
 
         this.score = 0;
@@ -732,6 +820,7 @@ class Game {
         this.zombieSpeed = CONFIG.zombie.baseSpeed;
         this.ammoBoxes = [];
         this.floatingTexts = [];
+        this.explosions = [];
         this.killCount = 0;
     }
 
@@ -898,6 +987,9 @@ class Game {
                         const randomMessage = ZOMBIE_DEATH_MESSAGES[Math.floor(Math.random() * ZOMBIE_DEATH_MESSAGES.length)];
                         this.floatingTexts.push(new FloatingText(zombie.x, zombie.y, randomMessage));
 
+                        // Create explosion effect
+                        this.explosions.push(new Explosion(zombie.x, zombie.y));
+
                         this.zombies.splice(j, 1);
                         this.score += 100;
                         this.killCount++;
@@ -955,6 +1047,16 @@ class Game {
                 this.floatingTexts.splice(i, 1);
             }
         }
+
+        // Update explosions
+        for (let i = this.explosions.length - 1; i >= 0; i--) {
+            this.explosions[i].update(deltaTime);
+
+            // Remove if inactive
+            if (!this.explosions[i].active) {
+                this.explosions.splice(i, 1);
+            }
+        }
     }
 
     render() {
@@ -993,6 +1095,11 @@ class Game {
         // Draw floating texts
         for (const text of this.floatingTexts) {
             text.draw(this.ctx);
+        }
+
+        // Draw explosions
+        for (const explosion of this.explosions) {
+            explosion.draw(this.ctx);
         }
 
         // Draw player
