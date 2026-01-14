@@ -1384,7 +1384,17 @@ class Game {
 
             // Check collision with player
             if (this.ammoBoxes[i].checkCollision(this.player)) {
+                // Add ammo to reserve
                 this.gun.reserveAmmo += this.ammoBoxes[i].ammoAmount;
+
+                // If magazine is empty or low, automatically top it off from reserve
+                if (this.gun.currentAmmo < this.gun.magazineSize && this.gun.reserveAmmo > 0) {
+                    const ammoNeeded = this.gun.magazineSize - this.gun.currentAmmo;
+                    const ammoToAdd = Math.min(ammoNeeded, this.gun.reserveAmmo);
+                    this.gun.currentAmmo += ammoToAdd;
+                    this.gun.reserveAmmo -= ammoToAdd;
+                }
+
                 this.soundManager.playAmmoPickup();
                 this.ammoBoxes.splice(i, 1);
                 continue;
