@@ -58,6 +58,25 @@ const CONFIG = {
     }
 };
 
+// Zombie death messages
+const ZOMBIE_DEATH_MESSAGES = [
+    "Ouch you got me!",
+    "Not fair!",
+    "Argh!",
+    "I'll be back...",
+    "Tell my wife...",
+    "Why me?!",
+    "Brutal!",
+    "You win this time!",
+    "I should've stayed dead!",
+    "My braaaaains!",
+    "Nice shot!",
+    "Curse you!",
+    "Oof!",
+    "That hurt!",
+    "Game over man!"
+];
+
 // Utility functions
 function distance(x1, y1, x2, y2) {
     return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
@@ -875,8 +894,9 @@ class Game {
 
                 if (dist < bullet.radius + zombie.radius) {
                     if (zombie.takeDamage(bullet.damage)) {
-                        // Add floating text before removing zombie
-                        this.floatingTexts.push(new FloatingText(zombie.x, zombie.y, "Ouch you got me!"));
+                        // Add random floating text before removing zombie
+                        const randomMessage = ZOMBIE_DEATH_MESSAGES[Math.floor(Math.random() * ZOMBIE_DEATH_MESSAGES.length)];
+                        this.floatingTexts.push(new FloatingText(zombie.x, zombie.y, randomMessage));
 
                         this.zombies.splice(j, 1);
                         this.score += 100;
