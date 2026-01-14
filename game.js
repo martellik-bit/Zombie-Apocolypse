@@ -67,6 +67,136 @@ function lerp(start, end, t) {
     return start + (end - start) * t;
 }
 
+// Sound Manager class
+class SoundManager {
+    constructor() {
+        this.audioContext = null;
+        this.enabled = true;
+    }
+
+    init() {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+            console.warn('Web Audio API not supported');
+            this.enabled = false;
+        }
+    }
+
+    playShoot() {
+        if (!this.enabled || !this.audioContext) return;
+
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+
+        oscillator.frequency.setValueAtTime(400, this.audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(100, this.audioContext.currentTime + 0.1);
+
+        gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
+
+        oscillator.start(this.audioContext.currentTime);
+        oscillator.stop(this.audioContext.currentTime + 0.1);
+    }
+
+    playZombieDeath() {
+        if (!this.enabled || !this.audioContext) return;
+
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.setValueAtTime(200, this.audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(50, this.audioContext.currentTime + 0.3);
+
+        gainNode.gain.setValueAtTime(0.15, this.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
+
+        oscillator.start(this.audioContext.currentTime);
+        oscillator.stop(this.audioContext.currentTime + 0.3);
+    }
+
+    playPlayerDamage() {
+        if (!this.enabled || !this.audioContext) return;
+
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(150, this.audioContext.currentTime);
+
+        gainNode.gain.setValueAtTime(0.2, this.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.2);
+
+        oscillator.start(this.audioContext.currentTime);
+        oscillator.stop(this.audioContext.currentTime + 0.2);
+    }
+
+    playAmmoPickup() {
+        if (!this.enabled || !this.audioContext) return;
+
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+
+        oscillator.frequency.setValueAtTime(600, this.audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(800, this.audioContext.currentTime + 0.1);
+
+        gainNode.gain.setValueAtTime(0.15, this.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
+
+        oscillator.start(this.audioContext.currentTime);
+        oscillator.stop(this.audioContext.currentTime + 0.1);
+    }
+
+    playReload() {
+        if (!this.enabled || !this.audioContext) return;
+
+        // Click sound
+        const oscillator1 = this.audioContext.createOscillator();
+        const gainNode1 = this.audioContext.createGain();
+
+        oscillator1.connect(gainNode1);
+        gainNode1.connect(this.audioContext.destination);
+
+        oscillator1.type = 'square';
+        oscillator1.frequency.setValueAtTime(100, this.audioContext.currentTime);
+
+        gainNode1.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+        gainNode1.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.05);
+
+        oscillator1.start(this.audioContext.currentTime);
+        oscillator1.stop(this.audioContext.currentTime + 0.05);
+
+        // Clack sound
+        const oscillator2 = this.audioContext.createOscillator();
+        const gainNode2 = this.audioContext.createGain();
+
+        oscillator2.connect(gainNode2);
+        gainNode2.connect(this.audioContext.destination);
+
+        oscillator2.type = 'square';
+        oscillator2.frequency.setValueAtTime(120, this.audioContext.currentTime + 0.1);
+
+        gainNode2.gain.setValueAtTime(0.1, this.audioContext.currentTime + 0.1);
+        gainNode2.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.15);
+
+        oscillator2.start(this.audioContext.currentTime + 0.1);
+        oscillator2.stop(this.audioContext.currentTime + 0.15);
+    }
+}
+
 // Player class
 class Player {
     constructor(x, y) {
@@ -457,6 +587,8 @@ class Game {
 
         this.lastTime = 0;
 
+        this.soundManager = new SoundManager();
+
         this.setupInput();
         this.gameLoop(0);
     }
@@ -468,7 +600,9 @@ class Game {
 
             if (this.state === GAME_STATES.PLAYING) {
                 if (e.key === 'r' || e.key === 'R') {
-                    this.gun.startReload();
+                    if (this.gun.startReload()) {
+                        this.soundManager.playReload();
+                    }
                 }
                 if (e.key === 'e' || e.key === 'E') {
                     this.toggleHiding();
@@ -514,6 +648,11 @@ class Game {
         this.state = GAME_STATES.PLAYING;
         this.overlay.classList.add('hidden');
         this.overlay.classList.remove('interactive');
+
+        // Initialize sound (requires user interaction)
+        if (!this.soundManager.audioContext) {
+            this.soundManager.init();
+        }
 
         // Initialize game objects
         this.player = new Player(this.canvas.width / 2, this.canvas.height / 2);
@@ -650,6 +789,7 @@ class Game {
                 const bulletX = this.player.x + Math.cos(this.player.angle) * (this.player.radius + 10);
                 const bulletY = this.player.y + Math.sin(this.player.angle) * (this.player.radius + 10);
                 this.bullets.push(new Bullet(bulletX, bulletY, this.player.angle));
+                this.soundManager.playShoot();
                 this.player.spinShootTimer = 0;
             }
         }
@@ -660,6 +800,7 @@ class Game {
             const bulletX = this.player.x + Math.cos(this.player.angle) * (this.player.radius + 10);
             const bulletY = this.player.y + Math.sin(this.player.angle) * (this.player.radius + 10);
             this.bullets.push(new Bullet(bulletX, bulletY, this.player.angle));
+            this.soundManager.playShoot();
         }
 
         // If shooting while trying to hide, break hiding
@@ -709,6 +850,7 @@ class Game {
                         this.zombies.splice(j, 1);
                         this.score += 100;
                         this.killCount++;
+                        this.soundManager.playZombieDeath();
 
                         // Spawn ammo box every 2 kills
                         if (this.killCount % 2 === 0) {
@@ -729,6 +871,8 @@ class Game {
                 if (this.player.takeDamage(CONFIG.zombie.damage)) {
                     this.gameOver();
                     return;
+                } else {
+                    this.soundManager.playPlayerDamage();
                 }
             }
         }
@@ -740,6 +884,7 @@ class Game {
             // Check collision with player
             if (this.ammoBoxes[i].checkCollision(this.player)) {
                 this.gun.reserveAmmo += this.ammoBoxes[i].ammoAmount;
+                this.soundManager.playAmmoPickup();
                 this.ammoBoxes.splice(i, 1);
                 continue;
             }
