@@ -1121,6 +1121,9 @@ class Game {
     updateGame(deltaTime) {
         this.gameTime += deltaTime;
 
+        // Check if player is shooting (used in multiple places below)
+        const isShooting = this.mouseDown || this.keys[' '];
+
         if (this.playerInTank && this.tank) {
             // Update tank movement
             let dx = 0;
@@ -1155,7 +1158,6 @@ class Game {
             this.player.angle = this.tank.angle;
 
             // Tank shooting
-            const isShooting = this.mouseDown || this.keys[' '];
             if (isShooting && this.gun.shoot()) {
                 const bulletX = this.tank.x + Math.cos(this.tank.angle) * (CONFIG.tank.cannonLength + 10);
                 const bulletY = this.tank.y + Math.sin(this.tank.angle) * (CONFIG.tank.cannonLength + 10);
@@ -1178,7 +1180,6 @@ class Game {
             }
 
             // Shooting (disabled while hiding, works with or without spinning)
-            const isShooting = this.mouseDown || this.keys[' '];
             if (isShooting && !this.player.isHiding && this.gun.shoot()) {
                 const bulletX = this.player.x + Math.cos(this.player.angle) * (this.player.radius + 10);
                 const bulletY = this.player.y + Math.sin(this.player.angle) * (this.player.radius + 10);
@@ -1349,9 +1350,6 @@ class Game {
         // Clear canvas
         this.ctx.fillStyle = '#2a2a2a';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // Don't render if player not initialized
-        if (!this.player) return;
 
         // Draw hide spots
         for (const spot of this.hideSpots) {
