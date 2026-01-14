@@ -12,6 +12,7 @@ A browser-based top-down 2D survival shooter game built with HTML5 Canvas and va
 
 ## Controls
 
+### Desktop Controls
 - **Mouse Movement** - Move your avatar (avatar follows mouse cursor)
 - **Mouse** - Aim weapon (gun always points at mouse)
 - **Spacebar** - Shoot
@@ -23,6 +24,12 @@ A browser-based top-down 2D survival shooter game built with HTML5 Canvas and va
 - **T** - Enter/Exit tank
 - **I** - Activate invincibility for 5 seconds (can still shoot!)
 - **P** - Pause game
+
+### iPad/Mobile Touch Controls
+- **Touch & Drag** - Move your avatar (avatar follows your finger)
+- **Tap Screen** - Shoot (automatically shoots while touching)
+- **Touch Position** - Aim weapon (gun points at your finger)
+- Works perfectly on iPad, iPhone, and Android devices!
 
 ## Gameplay
 
@@ -73,6 +80,8 @@ A browser-based top-down 2D survival shooter game built with HTML5 Canvas and va
 - HTML5 Canvas for rendering
 - Vanilla JavaScript (no frameworks or libraries)
 - Self-contained - no external dependencies or build process
+- **Fully responsive** - Works on desktop, iPad, tablets, and mobile devices
+- Touch-optimized controls for mobile gameplay
 
 ## File Structure
 
