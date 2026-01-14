@@ -294,12 +294,12 @@ class Player {
             ctx.fillText('HIDING', this.x, this.y - this.radius - 10);
         }
 
-        // Spin shooting indicator
+        // Spinning indicator
         if (this.isSpinShooting) {
             ctx.fillStyle = 'rgba(255, 170, 0, 0.8)';
             ctx.font = '14px Courier New';
             ctx.textAlign = 'center';
-            ctx.fillText('SPIN SHOOTING!', this.x, this.y - this.radius - 10);
+            ctx.fillText('SPINNING!', this.x, this.y - this.radius - 10);
         }
     }
 }
@@ -430,6 +430,42 @@ class AmmoBox {
 
     checkCollision(player) {
         return distance(this.x, this.y, player.x, player.y) < player.radius + this.width / 2;
+    }
+}
+
+// FloatingText class
+class FloatingText {
+    constructor(x, y, text) {
+        this.x = x;
+        this.y = y;
+        this.text = text;
+        this.lifetime = 2000; // 2 seconds
+        this.age = 0;
+        this.active = true;
+        this.speed = 30; // Float upward speed
+    }
+
+    update(deltaTime) {
+        this.age += deltaTime * 1000;
+        this.y -= this.speed * deltaTime;
+
+        if (this.age >= this.lifetime) {
+            this.active = false;
+        }
+    }
+
+    draw(ctx) {
+        const alpha = 1 - (this.age / this.lifetime); // Fade out over time
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#ff6666';
+        ctx.font = 'bold 16px Courier New';
+        ctx.textAlign = 'center';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        ctx.strokeText(this.text, this.x, this.y);
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
     }
 }
 
@@ -576,6 +612,7 @@ class Game {
         this.zombies = [];
         this.hideSpots = [];
         this.ammoBoxes = [];
+        this.floatingTexts = [];
         this.killCount = 0;
 
         this.score = 0;
@@ -675,6 +712,7 @@ class Game {
         this.zombieSpawnRate = CONFIG.zombie.spawnRate;
         this.zombieSpeed = CONFIG.zombie.baseSpeed;
         this.ammoBoxes = [];
+        this.floatingTexts = [];
         this.killCount = 0;
     }
 
@@ -773,30 +811,20 @@ class Game {
         // Update player
         this.player.update(deltaTime, this.keys, this.canvas);
 
-        // Update player angle based on mouse (unless spin shooting)
+        // Update player angle based on mouse (unless spinning)
         if (!this.player.isSpinShooting) {
             this.player.angle = Math.atan2(
                 this.mouseY - this.player.y,
                 this.mouseX - this.player.x
             );
         } else {
-            // Spin shooting - rotate constantly
+            // Spinning - rotate constantly
             this.player.angle += CONFIG.spinShoot.rotationSpeed * deltaTime;
-
-            // Auto-shoot while spinning
-            this.player.spinShootTimer += deltaTime * 1000;
-            if (this.player.spinShootTimer >= CONFIG.spinShoot.shootInterval && this.gun.shoot()) {
-                const bulletX = this.player.x + Math.cos(this.player.angle) * (this.player.radius + 10);
-                const bulletY = this.player.y + Math.sin(this.player.angle) * (this.player.radius + 10);
-                this.bullets.push(new Bullet(bulletX, bulletY, this.player.angle));
-                this.soundManager.playShoot();
-                this.player.spinShootTimer = 0;
-            }
         }
 
-        // Regular shooting (disabled while hiding or spin shooting)
+        // Shooting (disabled while hiding, works with or without spinning)
         const isShooting = this.mouseDown || this.keys[' '];
-        if (isShooting && !this.player.isHiding && !this.player.isSpinShooting && this.gun.shoot()) {
+        if (isShooting && !this.player.isHiding && this.gun.shoot()) {
             const bulletX = this.player.x + Math.cos(this.player.angle) * (this.player.radius + 10);
             const bulletY = this.player.y + Math.sin(this.player.angle) * (this.player.radius + 10);
             this.bullets.push(new Bullet(bulletX, bulletY, this.player.angle));
@@ -847,6 +875,9 @@ class Game {
 
                 if (dist < bullet.radius + zombie.radius) {
                     if (zombie.takeDamage(bullet.damage)) {
+                        // Add floating text before removing zombie
+                        this.floatingTexts.push(new FloatingText(zombie.x, zombie.y, "Ouch you got me!"));
+
                         this.zombies.splice(j, 1);
                         this.score += 100;
                         this.killCount++;
@@ -894,6 +925,16 @@ class Game {
                 this.ammoBoxes.splice(i, 1);
             }
         }
+
+        // Update floating texts
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            this.floatingTexts[i].update(deltaTime);
+
+            // Remove if inactive
+            if (!this.floatingTexts[i].active) {
+                this.floatingTexts.splice(i, 1);
+            }
+        }
     }
 
     render() {
@@ -927,6 +968,11 @@ class Game {
         // Draw zombies
         for (const zombie of this.zombies) {
             zombie.draw(this.ctx);
+        }
+
+        // Draw floating texts
+        for (const text of this.floatingTexts) {
+            text.draw(this.ctx);
         }
 
         // Draw player
